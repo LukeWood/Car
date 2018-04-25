@@ -56,8 +56,10 @@ model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dense(512))
 model.add(Activation('relu'))
+model.add(Dense(512))
+model.add(Activation('relu'))
 model.add(Dense(nb_actions))
-model.add(Activation('linear'))
+model.add(Activation('relu'))
 print(model.summary())
 
 processor = CarProcessor()
@@ -68,7 +70,7 @@ processor = CarProcessor()
 # (low eps). We also set a dedicated eps value that is used during testing. Note that we set it to 0.05
 # so that the agent still performs some random actions. This ensures that the agent cannot get stuck.
 policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.1, value_test=.1,
-                              nb_steps=1000000)
+                              nb_steps=10000)
 memory = SequentialMemory(limit=1000000, window_length=WINDOW_LENGTH)
 
 # The trade-off between exploration and exploitation is difficult and an on-going research topic.
@@ -78,7 +80,7 @@ memory = SequentialMemory(limit=1000000, window_length=WINDOW_LENGTH)
 # Feel free to give it a try!
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, policy=policy, memory=memory,
-               processor=processor, nb_steps_warmup=5, gamma=.99, target_model_update=4, delta_clip=1.)
+               processor=processor, nb_steps_warmup=5, gamma=.99, target_model_update=1, delta_clip=1.)
 dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
 if args.mode == 'train':
@@ -91,10 +93,10 @@ if args.mode == 'train':
 
     # Lets just keep training the same damn model
     dqn.load_weights(weights_filename)
-    for i in range(10):
-        dqn.fit(env, callbacks=callbacks, nb_steps=10000, log_interval=10000)
-        dqn.save_weights(weights_filename, overwrite=True)
-        dqn.test(env, nb_episodes=1, nb_max_episode_steps=10000, visualize=True)
+    dqn.fit(env, callbacks=callbacks, nb_steps=10000, log_interval=5000)
+    dqn.save_weights(weights_filename, overwrite=True)
+    env.reset()
+    dqn.test(env, nb_episodes=1, visualize=True)
 
     # After training is done, we save the final weights one more time.
     # Finally, evaluate our algorithm for 10 episodes.
@@ -104,4 +106,4 @@ elif args.mode == 'test':
     if args.weights:
         weights_filename = args.weights
     dqn.load_weights(weights_filename)
-    dqn.test(env, nb_episodes=10, visualize=True)
+    dqn.fit(env, nb_steps=1000000, visualize=True)
