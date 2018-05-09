@@ -17,7 +17,7 @@ from rl.core import Processor
 from rl.callbacks import FileLogger, ModelIntervalCheckpoint
 
 
-INPUT_SHAPE=(2,)
+INPUT_SHAPE=(5,)
 WINDOW_LENGTH=4
 
 parser = argparse.ArgumentParser()
@@ -31,7 +31,7 @@ env = gym.make(args.env_name)
 #np.random.seed(123)
 #env.seed(123)
 
-actions = [[1, 0, 0], [-1, 0, 0], [0,0,0]]#, [0, 1, 0], [0, 0, 0]]
+actions = [[1, 0, 0], [-1, 0, 0], [0,0,0], [0, 1, 0], [0, 0, 0]]
 nb_actions=len(actions)
 
 class CarProcessor(Processor):
