@@ -8,6 +8,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation, Flatten, Convolution2D, Permute
 from keras.optimizers import Adam
 import keras.backend as K
+from keras.utils import to_categorical
 
 from rl.agents.dqn import DQNAgent
 from rl.policy import LinearAnnealedPolicy, BoltzmannQPolicy, EpsGreedyQPolicy
@@ -16,7 +17,7 @@ from rl.core import Processor
 from rl.callbacks import FileLogger, ModelIntervalCheckpoint
 
 
-INPUT_SHAPE=(5,)
+INPUT_SHAPE=(2,)
 WINDOW_LENGTH=4
 
 parser = argparse.ArgumentParser()
@@ -27,10 +28,10 @@ args = parser.parse_args()
 
 # Get the environment and extract the number of actions.
 env = gym.make(args.env_name)
-np.random.seed(123)
-env.seed(123)
+#np.random.seed(123)
+#env.seed(123)
 
-actions = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 0]]
+actions = [[1, 0, 0], [-1, 0, 0], [0,0,0]]#, [0, 1, 0], [0, 0, 0]]
 nb_actions=len(actions)
 
 class CarProcessor(Processor):
@@ -52,11 +53,11 @@ input_shape=(WINDOW_LENGTH,) + INPUT_SHAPE
 # Next, we build our model. We use the same model that was described by Mnih et al. (2015).
 model = Sequential()
 model.add(Flatten(input_shape=input_shape))
-model.add(Dense(512))
+model.add(Dense(32))
 model.add(Activation('relu'))
-model.add(Dense(512))
+model.add(Dense(64))
 model.add(Activation('relu'))
-model.add(Dense(512))
+model.add(Dense(32))
 model.add(Activation('relu'))
 model.add(Dense(nb_actions))
 model.add(Activation('relu'))
@@ -69,8 +70,9 @@ processor = CarProcessor()
 # the agent initially explores the environment (high eps) and then gradually sticks to what it knows
 # (low eps). We also set a dedicated eps value that is used during testing. Note that we set it to 0.05
 # so that the agent still performs some random actions. This ensures that the agent cannot get stuck.
-policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.1, value_test=.1,
-                              nb_steps=10000)
+#policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=.75, value_min=.1, value_test=.1,
+#                              nb_steps=10000)
+policy = EpsGreedyQPolicy(eps=0.25)
 memory = SequentialMemory(limit=1000000, window_length=WINDOW_LENGTH)
 
 # The trade-off between exploration and exploitation is difficult and an on-going research topic.
@@ -79,9 +81,16 @@ memory = SequentialMemory(limit=1000000, window_length=WINDOW_LENGTH)
 # policy = BoltzmannQPolicy(tau=1.)
 # Feel free to give it a try!
 
+# model.compile(Adam(), loss="binary_crossentropy")
+# print(input_shape)
+# X = np.random.uniform(-1, 1, size=(10000, 4, 5))
+# y = to_categorical(np.array([3 for _ in range(10000)]), num_classes=4)
+# model.fit(X, y)
+# model.save_weights('tmp.h5', overwrite=True)
+
 dqn = DQNAgent(model=model, nb_actions=nb_actions, policy=policy, memory=memory,
-               processor=processor, nb_steps_warmup=5, gamma=.99, target_model_update=1, delta_clip=1.)
-dqn.compile(Adam(lr=.00025), metrics=['mae'])
+               processor=processor, nb_steps_warmup=15, gamma=.99, target_model_update=1, delta_clip=1.)
+dqn.compile(Adam(lr=.0005), metrics=['mae'])
 
 if args.mode == 'train':
     # Okay, now it's time to learn something! We capture the interrupt exception so that training
@@ -92,11 +101,16 @@ if args.mode == 'train':
     callbacks = [ModelIntervalCheckpoint(checkpoint_weights_filename, interval=250000)]
 
     # Lets just keep training the same damn model
-    dqn.load_weights(weights_filename)
-    dqn.fit(env, callbacks=callbacks, nb_steps=10000, log_interval=5000)
-    dqn.save_weights(weights_filename, overwrite=True)
-    env.reset()
-    dqn.test(env, nb_episodes=1, visualize=True)
+    #dqn.load_weights(weights_filename)
+    #dqn.load_weights('tmp.h5')
+
+    #dqn.fit(env, callbacks=callbacks, nb_steps=100000, log_interval=10000, visualize=False)
+    #dqn.save_weights(weights_filename, overwrite=True)
+    #env.reset()
+
+    for _ in range(10):
+        dqn.fit(env, callbacks=callbacks, nb_steps=100000, log_interval=10000, visualize=True)
+        env.reset()
 
     # After training is done, we save the final weights one more time.
     # Finally, evaluate our algorithm for 10 episodes.
